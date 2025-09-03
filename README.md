@@ -16,7 +16,6 @@ pipx ensurepath
 
 Create folders
 
-- src/local
 - src/addons
 - songs
 - src/addons/custom
