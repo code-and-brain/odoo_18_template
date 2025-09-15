@@ -1,0 +1,60 @@
+{
+  "@openmrs/esm-patient-chart-app": {
+    "logo": {
+      "src": "configs/header-logo.png"
+    },
+    "Display conditions": {
+      "roles": [
+        "Organizational: Nurse"
+      ]
+    }
+  },
+  "@openmrs/esm-login-app": {
+    "logo": {
+      "src": "configs/logo.png"
+    },
+    "footer": {
+      "additionalLogos": [
+        {
+          "src": "configs/madiro-logo.png",
+          "alt": ""
+        },
+        {
+          "src": "configs/msf-logo.png",
+          "alt": ""
+        }        
+      ]
+    }
+  },
+  "@openmrs/esm-primary-navigation-app": {
+    "logo": {
+      "src": "configs/header-logo.png"
+    },
+    "extensionSlots": {
+      "patient-chart-dashboard-slot": {
+        "remove": [
+          "offline-tools-patient-chart-actions-dashboard-link"
+        ]
+      }
+    }
+  },
+  "@openmrs/esm-styleguide": {
+    "Brand color #1": "#D7211E",
+    "Brand color #2": "#414141",
+    "Brand color #3": "#D7211E"
+  },
+  "@openmrs/esm-form-builder-app": {
+    "Display conditions": {
+      "privileges": [
+        "MSF Administrator"
+      ]
+    }
+  },
+  "@openmrs/esm-system-admin-app": {
+    "Display conditions": {
+      "privileges": [
+        "MSF Administrator"
+      ]
+    }
+  }
+}

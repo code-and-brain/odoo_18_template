@@ -1,0 +1,106 @@
+networks:
+  web:
+    external: true
+
+services:
+  openfn-postgresql:
+    command: postgres -c wal_level=logical -c max_wal_senders=10 -c max_replication_slots=10 -c max_connections=200
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file:
+      - '${MSF_ENV_CONFIG_PATH}/concatenated.env'
+    stop_grace_period: '3s'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    image: postgres:13
+    networks:
+      - ozone
+    ports:
+      - "${OPENFN_POSTGRES_PORT:-5433}:5432"
+    restart: unless-stopped
+    volumes:
+      - openfn-postgres-data:/var/lib/postgresql/data
+      - "${SQL_SCRIPTS_PATH}/postgresql/create_db.sh:/docker-entrypoint-initdb.d/create_db.sh"
+      - "${SQL_SCRIPTS_PATH}/postgresql/create_openfn_db.sh:/docker-entrypoint-initdb.d/create_openfn_db.sh"
+
+  migrations:
+    platform: linux/x86_64/v8
+    image: 'openfn/lightning:v2.14.0'
+    command: ["/app/bin/lightning", "eval", "Lightning.Release.migrate"]
+    env_file:
+      - '${MSF_ENV_CONFIG_PATH}/concatenated.env'
+    depends_on:
+      openfn-postgresql:
+        condition: service_healthy
+    networks:
+      - ozone
+      - web
+
+  web:
+    platform: linux/x86_64/v8
+    image: 'openfn/lightning:v2.14.0'
+    command: ["/app/bin/server"]
+    deploy:
+      resources:
+        limits:
+          cpus: '${DOCKER_WEB_CPUS:-0}'
+          memory: '${DOCKER_WEB_MEMORY:-0}'
+    env_file:
+      - '${MSF_ENV_CONFIG_PATH}/concatenated.env'
+    environment:
+      ADAPTORS_REGISTRY_JSON_PATH: /app/priv/adaptor_registry_cache.json
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      openfn-postgresql:
+        condition: service_started
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.web.rule: "Host(`${OPENFN_HOSTNAME}`)"
+      traefik.http.routers.web.entrypoints: "websecure"
+      traefik.http.routers.web.tls: "true"
+      traefik.http.services.web.loadbalancer.server.port: "${URL_PORT:-4000}"
+    healthcheck:
+      test: '${DOCKER_WEB_HEALTHCHECK_TEST:-curl localhost:4000/health_check}'
+      interval: '10s'
+      timeout: '3s'
+      start_period: '5s'
+      retries: 3
+    ports:
+      - '${LIGHTNING_EXTERNAL_PORT:-${PORT:-4000}}:${URL_PORT:-4000}'
+    networks:
+      - ozone
+      - web
+    volumes:
+      - $OPENFN_CONFIG_PATH/adaptor_registry_cache.json:/app/priv/adaptor_registry_cache.json
+
+  worker:
+    platform: linux/x86_64/v8
+    image: 'openfn/ws-worker:v1.14.1'
+    deploy:
+      resources:
+        limits:
+          cpus: '${DOCKER_WORKER_CPUS:-0}'
+          memory: '${DOCKER_WEB_MEMORY:-0}'
+    depends_on:
+      web:
+        condition: service_healthy
+        restart: true
+    env_file:
+      - '${MSF_ENV_CONFIG_PATH}/concatenated.env'
+    command: ['pnpm', 'start:prod', '-l', 'ws://web:${URL_PORT:-4000}/worker']
+    restart: '${DOCKER_RESTART_POLICY:-unless-stopped}'
+    stop_grace_period: '3s'
+    expose:
+      - '2222'
+    networks:
+      - ozone
+      - web
+
+volumes:
+  openfn-postgres-data:

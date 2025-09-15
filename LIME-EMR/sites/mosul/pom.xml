@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.ozonemsf</groupId>
+  <artifactId>ozone-msf-mosul</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>8</maven.compiler.source>
+    <maven.compiler.target>8</maven.compiler.target>
+    <gmavenplusPluginVersion>3.0.2</gmavenplusPluginVersion>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <artifactId>ozone-msf-iraq</artifactId>
+      <groupId>com.ozonemsf</groupId>
+      <version>1.0.0-SNAPSHOT</version>
+      <type>zip</type>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Unpack Ozone MSF zip -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.6.1</version>
+        <executions>
+          <execution>
+            <id>Unpack Ozone MSF</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>unpack-dependencies</goal>
+            </goals>
+            <configuration>
+              <excludeTransitive>true</excludeTransitive>
+              <outputDirectory>${project.build.directory}/ozone-msf-iraq</outputDirectory>
+              <includeArtifactIds>ozone-msf-iraq</includeArtifactIds>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <executions>
+          <execution>
+            <!-- Copy Ozone MSF files -->
+            <id>Copy Ozone MSF files</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>
+                ${project.build.directory}/${project.artifactId}-${project.version}</outputDirectory>
+              <overwrite>true</overwrite>
+              <resources>
+                <resource>
+                  <directory>${project.build.directory}/ozone-msf-iraq</directory>
+                  <excludes>
+                    <exclude>distro/configs/**/ampathforms/*.*</exclude>
+                    <exclude>distro/configs/**/ampathformstranslations/*.*</exclude>
+                    <exclude>distro/configs/**/addresshierarchy/*.*</exclude>
+                    <exclude>distro/configs/**/idgen/*.*</exclude>
+                    <exclude>distro/configs/**/locations/*.*</exclude>
+                    <exclude>distro/configs/**/visittypes/*.*</exclude>
+                    <exclude>distro/ozone-info.json</exclude>
+                  </excludes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <execution>
+            <!-- Override with local config files-->
+            <id>Copy local resources</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>
+                ${project.build.directory}/${project.artifactId}-${project.version}/distro/configs</outputDirectory>
+              <overwrite>true</overwrite>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/configs</directory>
+                  <excludes>
+                    <exclude>.gitkeep</exclude>
+                  </excludes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- packaging the distro as a installable/deployable file -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <id>Package distro artifacts</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+            <configuration>
+              <appendAssemblyId>false</appendAssemblyId>
+              <descriptors>
+                <descriptor>assembly.xml</descriptor>
+              </descriptors>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>Add MSF Mosul Frontend Configuration</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <echo message="Adding MSF Mosul frontend config"/>
+                <replaceregexp file="${project.build.directory}/${project.artifactId}-${project.version}/run/docker/.env"
+                            match="(SPA_CONFIG_URLS=.+)" replace="\1,/openmrs/spa/configs/msf-mosul-frontend-config.json" />
+                <replaceregexp file="${project.build.directory}/${project.artifactId}-${project.version}/run/docker/concatenated.env"
+                            match="(SPA_CONFIG_URLS=.+)" replace="\1,/openmrs/spa/configs/msf-mosul-frontend-config.json" />
+              </target>
+            </configuration>
+          </execution>
+          <execution>
+            <id>Add MSF Mosul Script Configuration</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <echo level="info" message="Adding MSF project Name to ozone" />
+                <replaceregexp file="${project.build.directory}/${project.artifactId}-${project.version}/run/docker/scripts/utils.sh"
+                  match="export PROJECT_NAME=.*" replace='export PROJECT_NAME="${project.artifactId}"' />
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.gmavenplus</groupId>
+        <artifactId>gmavenplus-plugin</artifactId>
+        <version>${gmavenplusPluginVersion}</version>
+        <executions>
+          <execution>
+            <id>combine openfn project.yaml files in Mosul</id>
+            <goals>
+              <goal>execute</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <scripts>
+                <script>file://${project.build.directory}/${project.artifactId}-${project.version}/run/docker/scripts/merge-openfn-yaml.groovy</script>
+              </scripts>
+            </configuration>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.groovy</groupId>
+            <artifactId>groovy</artifactId>
+            <version>4.0.15</version>
+            <scope>runtime</scope>
+          </dependency>
+        </dependencies>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.gmaven</groupId>
+        <artifactId>groovy-maven-plugin</artifactId>
+        <version>2.1.1</version>
+        <executions>
+            <execution>
+                <id>Create Mosul Ozone Info</id>
+                <phase>process-resources</phase>
+                <goals>
+                    <goal>execute</goal>
+                </goals>
+                <configuration>
+                  <source>
+                    // Ensure target directory exists
+                    def targetDir = new File("${project.build.directory}/${project.artifactId}-${project.version}/distro")
+                    targetDir.mkdirs()
+
+                    // Always create/overwrite the JSON file
+                    def ozoneInfoFile = new File(targetDir, "ozone-info.json")
+                    def ozoneInfo = [
+                        name: "${project.artifactId}",
+                        version: "${project.version}",
+                        description: "${project.description}"
+                    ]
+
+                    ozoneInfoFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(ozoneInfo))
+                </source>
+                </configuration>
+            </execution>
+        </executions>
+    </plugin>
+    </plugins>
+  </build>
+
+  <repositories>
+    <repository>
+      <id>mks-nexus-public</id>
+      <url>https://nexus.mekomsolutions.net/repository/maven-public/</url>
+    </repository>
+    <repository>
+      <id>msf-ocg-github-lime-emr</id>
+      <url>https://maven.pkg.github.com/MSF-OCG/LIME-EMR/</url>
+    </repository>
+  </repositories>
+
+  <distributionManagement>
+    <repository>
+      <name>MSF repo for releases</name>
+      <id>msf-ocg-github-lime-emr</id>
+      <url>https://maven.pkg.github.com/MSF-OCG/LIME-EMR</url>
+    </repository>
+    <snapshotRepository>
+      <name>MSF repo for snapshots</name>
+      <id>msf-ocg-github-lime-emr</id>
+      <url>https://maven.pkg.github.com/MSF-OCG/LIME-EMR</url>
+    </snapshotRepository>
+  </distributionManagement>
+
+</project>

@@ -22,7 +22,6 @@ var/
 .installed.cfg
 *.egg
 *.eggs
-
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
@@ -47,7 +46,6 @@ coverage.xml
 # Visual Studio cache/options directory
 .vs/
 .vscode
-
 # OSX Files
 .DS_Store
 
@@ -90,3 +88,4 @@ tasks.txt
 HMS-odoo.code-workspace
 
 control.sh
+jenkins_home/
